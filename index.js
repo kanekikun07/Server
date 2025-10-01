@@ -5,6 +5,13 @@ const url = require('url');
 const net = require('net');
 const path = require('path');
 const logger = require('./logger');
+const express = require('express');
+const path = require('path');
+const app = express();
+
+
+// Serve user_proxies.txt publicly
+
 
 // Load proxies from file (no auth), filter out https and socks4 proxies
 const proxyList = fs.readFileSync('proxies.txt', 'utf-8')
@@ -242,6 +249,14 @@ function writeUserProxiesFile() {
 
 // --- Handle uncaught exceptions and rejections ---
 
+app.get('/user_proxies.txt', (req, res) => {
+  const filePath = path.resolve(__dirname, 'user_proxies.txt');
+  res.sendFile(filePath);
+});
+app.listen(3000, () => {
+  console.log('Public file server running at http://localhost:3000/user_proxies.txt');
+});
+
 process.on('uncaughtException', (err) => {
   logger.error(`Uncaught Exception: ${err.stack || err}`);
   process.exit(1);
@@ -249,4 +264,5 @@ process.on('uncaughtException', (err) => {
 
 process.on('unhandledRejection', (reason, promise) => {
   logger.error(`Unhandled Rejection at: ${promise}, reason: ${reason}`);
+
 });
