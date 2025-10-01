@@ -1,17 +1,13 @@
+// Proxy Relay Server - HTTP/HTTPS (proxy-chain), SOCKS4/5 (socksv5), and public download of user_proxies.txt
+
 const ProxyChain = require('proxy-chain');
 const socks = require('socksv5');
 const fs = require('fs');
 const url = require('url');
 const net = require('net');
 const path = require('path');
-const logger = require('./logger');
 const express = require('express');
-const path = require('path');
-const app = express();
-
-
-// Serve user_proxies.txt publicly
-
+const logger = require('./logger'); // Replace with your logger logic or use console
 
 // Load proxies from file (no auth), filter out https and socks4 proxies
 const proxyList = fs.readFileSync('proxies.txt', 'utf-8')
@@ -52,7 +48,6 @@ function logUsage(username, bytesSent, bytesReceived) {
 }
 
 // --- HTTP/HTTPS Proxy Server with proxy-chain ---
-
 const httpProxyServer = new ProxyChain.Server({
   port: 8000,
 
@@ -117,7 +112,6 @@ httpProxyServer.listen(() => {
 });
 
 // --- SOCKS4/5 Proxy Server with socksv5 ---
-
 const socksServer = socks.createServer((info, accept, deny) => {
   // Deny here because we handle connection in 'proxyConnect' event
   deny();
@@ -226,43 +220,44 @@ socksServer.on('error', (err) => {
 });
 
 // --- Write user proxies file ---
-
 function writeUserProxiesFile() {
   const lines = [];
-
   Object.entries(USERS).forEach(([username, { password, proxyIndex }]) => {
     const upstreamProxy = proxyList[proxyIndex];
     if (!upstreamProxy) return;
-
     // Parse upstream proxy URL to extract protocol and host:port
     const parsed = url.parse(upstreamProxy);
-
     // Compose line: protocol://username:password@host:port
     const line = `${parsed.protocol}//${encodeURIComponent(username)}:${encodeURIComponent(password)}@${parsed.host}`;
     lines.push(line);
   });
-
   const filePath = path.resolve(__dirname, 'user_proxies.txt');
   fs.writeFileSync(filePath, lines.join('\n'), 'utf-8');
-  logger.info(`User  proxy list saved to ${filePath}`);
+  logger.info(`User proxy list saved to ${filePath}`);
 }
 
-// --- Handle uncaught exceptions and rejections ---
-
+// --- Express server to serve user_proxies.txt publicly ---
+const app = express();
 app.get('/user_proxies.txt', (req, res) => {
   const filePath = path.resolve(__dirname, 'user_proxies.txt');
-  res.sendFile(filePath);
+  // Check if file exists
+  fs.access(filePath, fs.constants.F_OK, (err) => {
+    if (err) {
+      res.status(404).send('user_proxies.txt not found');
+    } else {
+      res.sendFile(filePath);
+    }
+  });
 });
 app.listen(3000, () => {
-  console.log('Public file server running at http://localhost:3000/user_proxies.txt');
+  logger.info('Public file server running at http://localhost:3000/user_proxies.txt');
 });
 
+// --- Handle uncaught exceptions and rejections ---
 process.on('uncaughtException', (err) => {
   logger.error(`Uncaught Exception: ${err.stack || err}`);
   process.exit(1);
 });
-
 process.on('unhandledRejection', (reason, promise) => {
   logger.error(`Unhandled Rejection at: ${promise}, reason: ${reason}`);
-
 });
