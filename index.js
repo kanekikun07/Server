@@ -83,7 +83,7 @@ async function loadProxies() {
     // Dynamically generate USERS based on proxies
     USERS = {};
     proxyList.forEach((proxy, index) => {
-      const username = `kevin${index + 1}`;
+      const username = `user${index + 1}`;
       const password = `pass${index + 1}`;
       USERS[username] = { password, proxyIndex: index };
     });
